@@ -72,27 +72,45 @@ class CFormAnswers
 // Обработчик событий
 class CFormAnswersHandlers
 {
-    public static function OnFormResultListGetTabs($WEB_FORM_ID, &$arTabs, &$arAdditionalParams)
+    /**
+     * В модуле "form" (веб-формы) нет события "OnFormResultListGetTabs" - его не существует
+     * в ядре Битрикс, поэтому оно никогда не вызывается, и вкладка не появлялась.
+     * Добавлять свою вкладку в CAdminTabControl нужно через общее событие главного
+     * модуля "main" - "OnAdminTabControlBegin", которое стреляет из CAdminTabControl::Begin()
+     * для КАЖДОГО экрана редактирования в админке, поэтому здесь обязательно фильтруем
+     * по имени скрипта (form_result_edit.php).
+     */
+    public static function OnAdminTabControlBegin(&$tabControl)
     {
         if (!Loader::includeModule("form.answers"))
             return;
-            
-        $options = Option::get("form.answers", "form_options", "");
-        $options = unserialize($options);
-        
-        if (!is_array($options))
-            $options = array();
-            
-        if (isset($options[$WEB_FORM_ID]) && $options[$WEB_FORM_ID] == "Y")
-        {
-            $arTabs[] = array(
-                "DIV" => "answers_tab",
-                "TAB" => "Ответы",
-                "FILENAME" => "/bitrix/admin/form_answers_admin.php",
-                "TITLE" => "Управление ответами на результаты",
-                "ONSELECT" => ""
-            );
-        }
+
+        if (!isset($tabControl->tabs) || !is_array($tabControl->tabs))
+            return;
+
+        if (basename($_SERVER["SCRIPT_NAME"]) !== "form_result_edit.php")
+            return;
+
+        $formId = intval($_REQUEST["WEB_FORM_ID"]);
+        if ($formId <= 0 || CFormAnswers::getFormOption($formId) !== "Y")
+            return;
+
+        $resultId = intval($_REQUEST["RESULT_ID"]);
+
+        // Своя форма (выбор результата + текст/HTML/визуальный редактор) не может быть
+        // вложена как <form> внутрь CONTENT-вкладки - вся страница form_result_edit.php
+        // уже обёрнута в один общий <form>, а вложенные <form> в HTML не поддерживаются.
+        // Поэтому подключаем существующую рабочую страницу через iframe.
+        $src = "/bitrix/admin/form_answers_admin.php?IFRAME=Y&WEB_FORM_ID=".$formId
+            .($resultId > 0 ? "&RESULT_ID=".$resultId : "")
+            ."&lang=".LANGUAGE_ID;
+
+        $tabControl->tabs[] = array(
+            "DIV" => "answers_tab",
+            "TAB" => "Ответы",
+            "TITLE" => "Ответы на результат формы",
+            "CONTENT" => '<iframe src="'.htmlspecialcharsbx($src).'" style="width:100%;height:650px;border:0;"></iframe>',
+        );
     }
 }
 ?>

@@ -12,6 +12,7 @@ CModule::IncludeModule("iblock");
 $WEB_FORM_ID = intval($_REQUEST["WEB_FORM_ID"]);
 $RESULT_ID = intval($_REQUEST["RESULT_ID"]);
 $action = $_REQUEST["action"];
+$bIframe = ($_REQUEST["IFRAME"] === "Y");
 
 $z = CForm::GetByID($WEB_FORM_ID);
 if (!$form = $z->Fetch())
@@ -86,6 +87,8 @@ while ($arResult = $rsResults->Fetch())
     $arResults[] = $arResult;
 
 // Редактирование
+$ifr = $bIframe ? "&IFRAME=Y" : "";
+
 $editAnswer = null;
 if (isset($_REQUEST["edit_id"]) && intval($_REQUEST["edit_id"]) > 0)
 {
@@ -102,7 +105,20 @@ if (isset($_REQUEST["edit_id"]) && intval($_REQUEST["edit_id"]) > 0)
     }
 }
 
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+if ($bIframe)
+{
+    // Встроено вкладкой во вкладку "Ответы" на form_result_edit.php - выводим
+    // только содержимое, без общего меню/шапки админки.
+    ?><!DOCTYPE html>
+    <html>
+    <head><?$APPLICATION->ShowHead();?></head>
+    <body>
+    <?
+}
+else
+{
+    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+}
 
 // Визуальный редактор
 if (CModule::IncludeModule("fileman"))
@@ -125,7 +141,7 @@ if (CModule::IncludeModule("fileman"))
     <div class="adm-detail-content">
         <div class="adm-detail-title">Выберите результат</div>
         <div class="adm-detail-content-item-block">
-            <select onchange="if(this.value) window.location='?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID='+this.value">
+            <select onchange="if(this.value) window.location='?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID='+this.value+'<?=$ifr?>'">
                 <option value="">-- выберите --</option>
                 <?foreach($arResults as $res):?>
                     <option value="<?=$res["ID"]?>" <?=$res["ID"]==$RESULT_ID?"selected":""?>>
@@ -157,7 +173,7 @@ if (CModule::IncludeModule("fileman"))
                     <div style="margin-top:10px;">
                         <input type="submit" value="<?=$editAnswer ? "Обновить" : "Сохранить"?>" class="adm-btn-save">
                         <?if($editAnswer):?>
-                            <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?>" class="adm-btn">Отмена</a>
+                            <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?><?=$ifr?>" class="adm-btn">Отмена</a>
                         <?endif;?>
                     </div>
                 </form>
@@ -194,9 +210,9 @@ if (CModule::IncludeModule("fileman"))
                         <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; background:#f9f9f9;">
                             <div style="margin-bottom:10px; color:#666;">
                                 <?=$answer["DATE_CREATE"]?>
-                                <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?>&edit_id=<?=$answer["ID"]?>" 
+                                <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?>&edit_id=<?=$answer["ID"]?><?=$ifr?>"
                                    style="margin-left:10px;">Редактировать</a>
-                                <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?>&action=delete&delete_id=<?=$answer["ID"]?>&<?=bitrix_sessid_get()?>" 
+                                <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?>&action=delete&delete_id=<?=$answer["ID"]?><?=$ifr?>&<?=bitrix_sessid_get()?>"
                                    onclick="return confirm('Удалить?')" 
                                    style="margin-left:10px; color:red;">Удалить</a>
                             </div>
@@ -216,5 +232,12 @@ if (CModule::IncludeModule("fileman"))
 <?endif;?>
 
 <?
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+if ($bIframe):
+?>
+    </body>
+    </html>
+<?
+else:
+    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+endif;
 ?>

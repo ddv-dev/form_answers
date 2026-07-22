@@ -123,24 +123,27 @@ class form_answers extends CModule
     
     function InstallEvents()
     {
+        // "OnFormResultListGetTabs" в модуле "form" не существует - такого события
+        // ядро Битрикс никогда не генерирует. Добавлять вкладку в CAdminTabControl
+        // нужно через общее событие главного модуля "main" - "OnAdminTabControlBegin".
         EventManager::getInstance()->registerEventHandler(
-            "form",
-            "OnFormResultListGetTabs",
+            "main",
+            "OnAdminTabControlBegin",
             $this->MODULE_ID,
             "CFormAnswersHandlers",
-            "OnFormResultListGetTabs"
+            "OnAdminTabControlBegin"
         );
         return true;
     }
-    
+
     function UnInstallEvents()
     {
         EventManager::getInstance()->unRegisterEventHandler(
-            "form",
-            "OnFormResultListGetTabs",
+            "main",
+            "OnAdminTabControlBegin",
             $this->MODULE_ID,
             "CFormAnswersHandlers",
-            "OnFormResultListGetTabs"
+            "OnAdminTabControlBegin"
         );
         return true;
     }
