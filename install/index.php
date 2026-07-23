@@ -77,26 +77,71 @@ class form_answers extends CModule
     function DoUninstall()
     {
         global $APPLICATION, $step;
-        
-        // Удаляем события
-        $this->UnInstallEvents();
-        
-        // Удаляем файлы
-        $this->UnInstallFiles();
-        
-        // Удаляем опции
-        Option::delete($this->MODULE_ID);
-        
-        // Удаляем модуль из системы
-        ModuleManager::unRegisterModule($this->MODULE_ID);
-        
-        // Показываем сообщение
-        $APPLICATION->IncludeAdminFile(
-            GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
-            $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/install/unstep1.php"
-        );
-        
+
+        $step = intval($_REQUEST["step"]);
+        $dir  = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/install";
+
+        if ($step < 2)
+        {
+            // Шаг 1: спрашиваем, удалять ли инфоблок с ответами.
+            $APPLICATION->IncludeAdminFile(
+                GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
+                $dir."/unstep1.php"
+            );
+        }
+        else
+        {
+            // Шаг 2: собственно удаление.
+            $this->UnInstallEvents();
+            $this->UnInstallFiles();
+
+            // Инфоблок удаляем только если пользователь НЕ попросил сохранить данные.
+            if ($_REQUEST["save_data"] != "Y")
+                $this->DeleteIBlock();
+
+            Option::delete($this->MODULE_ID);
+            ModuleManager::unRegisterModule($this->MODULE_ID);
+
+            $APPLICATION->IncludeAdminFile(
+                GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
+                $dir."/unstep2.php"
+            );
+        }
+
         return true;
+    }
+
+    // Удаляет инфоблок ответов вместе со всеми ответами (и тип инфоблока,
+    // если в нём не осталось других инфоблоков).
+    function DeleteIBlock()
+    {
+        if (!Loader::includeModule("iblock"))
+            return;
+
+        $iblockId = intval(Option::get($this->MODULE_ID, "answers_iblock_id", 0));
+
+        if ($iblockId <= 0)
+        {
+            // Опция могла потеряться - ищем инфоблок по коду.
+            $rs = CIBlock::GetList(array(), array(
+                "TYPE" => "form_answers",
+                "CODE" => "form_answers",
+                "CHECK_PERMISSIONS" => "N",
+            ));
+            if ($ib = $rs->Fetch())
+                $iblockId = intval($ib["ID"]);
+        }
+
+        if ($iblockId > 0)
+            CIBlock::Delete($iblockId); // удаляет инфоблок вместе с элементами и свойствами
+
+        // Удаляем тип инфоблока, если в нём больше нет инфоблоков.
+        $rsRest = CIBlock::GetList(array(), array(
+            "TYPE" => "form_answers",
+            "CHECK_PERMISSIONS" => "N",
+        ));
+        if (!$rsRest->Fetch())
+            CIBlockType::Delete("form_answers");
     }
     
     // Страницы модуля, которые должны быть доступны по URL из /bitrix/admin/.
