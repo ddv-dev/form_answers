@@ -78,35 +78,22 @@ class form_answers extends CModule
     {
         global $APPLICATION, $step;
 
-        $step = intval($_REQUEST["step"]);
-        $dir  = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/install";
+        // Одношаговое удаление: снимаем событие, страницы, опции и регистрацию.
+        $this->UnInstallEvents();
+        $this->UnInstallFiles();
 
-        if ($step < 2)
-        {
-            // Шаг 1: спрашиваем, удалять ли инфоблок с ответами.
-            $APPLICATION->IncludeAdminFile(
-                GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
-                $dir."/unstep1.php"
-            );
-        }
-        else
-        {
-            // Шаг 2: собственно удаление.
-            $this->UnInstallEvents();
-            $this->UnInstallFiles();
+        // Инфоблок с ответами удаляем по умолчанию. Чтобы сохранить данные
+        // (например, перед переустановкой), добавьте в URL удаления save_data=Y.
+        if ($_REQUEST["save_data"] != "Y")
+            $this->DeleteIBlock();
 
-            // Инфоблок удаляем только если пользователь НЕ попросил сохранить данные.
-            if ($_REQUEST["save_data"] != "Y")
-                $this->DeleteIBlock();
+        Option::delete($this->MODULE_ID);
+        ModuleManager::unRegisterModule($this->MODULE_ID);
 
-            Option::delete($this->MODULE_ID);
-            ModuleManager::unRegisterModule($this->MODULE_ID);
-
-            $APPLICATION->IncludeAdminFile(
-                GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
-                $dir."/unstep2.php"
-            );
-        }
+        $APPLICATION->IncludeAdminFile(
+            GetMessage("FORM_ANSWERS_UNINSTALL_TITLE"),
+            $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/install/unstep1.php"
+        );
 
         return true;
     }

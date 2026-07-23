@@ -1,31 +1,21 @@
 <?
-// Шаг 1 деинсталляции: подтверждение и выбор - удалять ли инфоблок с ответами.
+// Итоговое сообщение об удалении модуля.
 if(!check_bitrix_sessid()) return;
 IncludeModuleLangFile(__FILE__);
 
 global $APPLICATION;
 
-echo CAdminMessage::ShowMessage(array(
-    "TYPE" => "OK",
-    "MESSAGE" => "Удаление модуля «Ответы на результаты веб-форм»",
-    "DETAILS" => "По умолчанию инфоблок с ответами будет удалён вместе со всеми сохранёнными ответами.<br>"
-        ."Отметьте галочку ниже, если нужно сохранить инфоблок и данные (например, перед переустановкой).",
-    "HTML" => true,
-));
+if($ex = $APPLICATION->GetException())
+    echo CAdminMessage::ShowMessage(array(
+        "TYPE" => "ERROR",
+        "MESSAGE" => "Ошибка при удалении модуля",
+        "DETAILS" => $ex->GetString(),
+        "HTML" => true,
+    ));
+else
+    echo CAdminMessage::ShowNote("Модуль «Ответы на результаты веб-форм» удалён.");
 ?>
 <form action="<?echo $APPLICATION->GetCurPage()?>">
-    <?echo bitrix_sessid_post()?>
     <input type="hidden" name="lang" value="<?echo LANG?>">
-    <input type="hidden" name="id" value="form.answers">
-    <input type="hidden" name="uninstall" value="Y">
-    <input type="hidden" name="step" value="2">
-
-    <p>
-        <label>
-            <input type="checkbox" name="save_data" value="Y">
-            Сохранить инфоблок с ответами (не удалять данные)
-        </label>
-    </p>
-
-    <input type="submit" name="inst" value="Удалить модуль" class="adm-btn-save">
+    <input type="submit" name="" value="Вернуться в список модулей">
 </form>
