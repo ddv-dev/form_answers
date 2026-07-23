@@ -105,11 +105,29 @@ class CFormAnswersHandlers
             .($resultId > 0 ? "&RESULT_ID=".$resultId : "")
             ."&lang=".LANGUAGE_ID;
 
+        // iframe без внутреннего скролла: JS подгоняет его высоту под реальную
+        // высоту содержимого (страница того же домена, размеры доступны).
+        // Ресайз выполняется только когда вкладка видима (offsetWidth > 0), и
+        // периодически - чтобы учесть позднюю инициализацию визуального редактора.
+        $iframeId = "form_answers_iframe";
+        $content =
+            '<iframe id="'.$iframeId.'" src="'.htmlspecialcharsbx($src).'" scrolling="no"'
+            .' style="width:100%;height:400px;border:0;display:block;overflow:hidden;"></iframe>'
+            .'<script>(function(){'
+            .'var id='.json_encode($iframeId).';'
+            .'function rz(){var f=document.getElementById(id);if(!f||!f.offsetWidth)return;'
+            .'try{var d=f.contentWindow.document;'
+            .'var h=Math.max(d.body.scrollHeight,d.body.offsetHeight,d.documentElement.scrollHeight);'
+            .'if(h>0&&Math.abs(parseInt(f.style.height)-h)>2)f.style.height=(h+24)+"px";}catch(e){}}'
+            .'var f=document.getElementById(id);if(f){f.addEventListener("load",function(){setTimeout(rz,200);});}'
+            .'setInterval(rz,500);'
+            .'})();</script>';
+
         $tabControl->tabs[] = array(
             "DIV" => "answers_tab",
             "TAB" => "Ответы",
             "TITLE" => "Ответы на результат формы",
-            "CONTENT" => '<iframe src="'.htmlspecialcharsbx($src).'" style="width:100%;height:650px;border:0;"></iframe>',
+            "CONTENT" => $content,
         );
     }
 }
