@@ -36,47 +36,51 @@ if ($action == "delete" && ($delete_id = intval($_REQUEST["delete_id"])) > 0)
 }
 
 // Сохранение
-if ($_SERVER["REQUEST_METHOD"] == "POST" && $_REQUEST["save"] == "Y")
+$saveError = "";
+if ($_SERVER["REQUEST_METHOD"] == "POST" && $_REQUEST["save"] == "Y" && check_bitrix_sessid())
 {
-    if (check_bitrix_sessid())
+    $iblockId = CFormAnswers::getAnswersIBlockId();
+    $answerText = isset($_REQUEST["ANSWER"]) ? $_REQUEST["ANSWER"] : "";
+
+    // Проверка на пустой ответ: убираем HTML-теги, неразрывные и обычные
+    // пробелы - если ничего значимого не осталось, сохранять нечего.
+    $answerPlain = trim(str_replace(array("&nbsp;", "\xC2\xA0"), " ", strip_tags($answerText)));
+
+    if ($answerPlain === "")
     {
-        $iblockId = CFormAnswers::getAnswersIBlockId();
-        
-        if ($iblockId > 0 && $RESULT_ID > 0)
-        {
-            $el = new CIBlockElement;
-            
-            $arFields = array(
-                "IBLOCK_ID" => $iblockId,
-                "NAME" => "Ответ на результат #".$RESULT_ID." (форма #".$WEB_FORM_ID.")",
-                "ACTIVE" => "Y",
-                "DETAIL_TEXT" => $_REQUEST["ANSWER"],
-                "DETAIL_TEXT_TYPE" => $_REQUEST["ANSWER_TYPE"] ?: "html",
-                "PROPERTY_VALUES" => array(
-                    "ID_RESULT" => $RESULT_ID,
-                    "ID_FORM" => $WEB_FORM_ID,
-                ),
-            );
-            
-            $edit_id = intval($_REQUEST["edit_id"]);
-            
-            if ($edit_id > 0)
-            {
-                if ($el->Update($edit_id, $arFields))
-                    CAdminMessage::ShowNote("Ответ обновлен");
-                else
-                    CAdminMessage::ShowMessage("Ошибка: ".$el->LAST_ERROR);
-            }
-            else
-            {
-                if ($el->Add($arFields))
-                    CAdminMessage::ShowNote("Ответ добавлен");
-                else
-                    CAdminMessage::ShowMessage("Ошибка: ".$el->LAST_ERROR);
-            }
-            
+        $saveError = "Нельзя сохранить пустой ответ - введите текст.";
+    }
+    elseif ($iblockId > 0 && $RESULT_ID > 0)
+    {
+        $el = new CIBlockElement;
+
+        $arFields = array(
+            "IBLOCK_ID" => $iblockId,
+            "NAME" => "Ответ на результат #".$RESULT_ID." (форма #".$WEB_FORM_ID.")",
+            "ACTIVE" => "Y",
+            "DETAIL_TEXT" => $answerText,
+            "DETAIL_TEXT_TYPE" => $_REQUEST["ANSWER_TYPE"] ?: "html",
+            "PROPERTY_VALUES" => array(
+                "ID_RESULT" => $RESULT_ID,
+                "ID_FORM" => $WEB_FORM_ID,
+            ),
+        );
+
+        $edit_id = intval($_REQUEST["edit_id"]);
+
+        if ($edit_id > 0)
+            $ok = $el->Update($edit_id, $arFields);
+        else
+            $ok = $el->Add($arFields);
+
+        if ($ok)
             LocalRedirect($APPLICATION->GetCurPageParam("", array("edit_id", "save", "sessid")));
-        }
+        else
+            $saveError = "Ошибка сохранения: ".$el->LAST_ERROR;
+    }
+    else
+    {
+        $saveError = "Не удалось определить инфоблок ответов или результат формы.";
     }
 }
 
@@ -148,6 +152,9 @@ endif;
         <div class="adm-detail-content">
             <div class="adm-detail-title"><?=$editAnswer ? "Редактирование ответа" : "Новый ответ"?></div>
             <div class="adm-detail-content-item-block">
+                <?if(!empty($saveError)):?>
+                    <?=CAdminMessage::ShowMessage(array("MESSAGE" => $saveError, "TYPE" => "ERROR"))?>
+                <?endif;?>
                 <form method="POST">
                     <?=bitrix_sessid_post()?>
                     <input type="hidden" name="WEB_FORM_ID" value="<?=$WEB_FORM_ID?>">
@@ -158,9 +165,9 @@ endif;
                     <?endif;?>
                     
                     <?
-                    // Штатный редактор Битрикса с переключателем Визуальный/HTML/Текст.
-                    // Он сам создаёт поля ANSWER и ANSWER_TYPE и на submit формы
-                    // переносит содержимое в textarea ANSWER.
+                    // Штатный визуальный редактор Битрикса (вкладки Визуальный / HTML / Текст).
+                    // Сам создаёт поля ANSWER и ANSWER_TYPE и на submit формы переносит
+                    // содержимое в textarea ANSWER.
                     if (CModule::IncludeModule("fileman"))
                     {
                         CFileMan::AddHTMLEditorFrame(
@@ -173,17 +180,10 @@ endif;
                     }
                     else
                     {
-                        // Фолбэк, если модуль fileman недоступен: простое поле HTML/ТЕКСТ.
-                        $curType = $editAnswer ? $editAnswer["DETAIL_TEXT_TYPE"] : "html";
+                        // Фолбэк на случай, если модуль fileman недоступен.
                         ?>
-                        <div style="margin-bottom:6px;">
-                            Тип текста:
-                            <select name="ANSWER_TYPE">
-                                <option value="html" <?=$curType=="html"?"selected":""?>>HTML</option>
-                                <option value="text" <?=$curType=="text"?"selected":""?>>Текст</option>
-                            </select>
-                        </div>
                         <textarea name="ANSWER" style="width:100%;height:350px;"><?=htmlspecialcharsbx($editAnswer ? $editAnswer["~DETAIL_TEXT"] : "")?></textarea>
+                        <input type="hidden" name="ANSWER_TYPE" value="html">
                         <?
                     }
                     ?>
