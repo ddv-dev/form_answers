@@ -142,26 +142,28 @@ require_once($prologAfter);
 <?if($RESULT_ID > 0):?>
     <div class="adm-detail-content-wrap" style="margin-top:20px;">
         <div class="adm-detail-content">
-            <div class="adm-detail-title"><?=$editAnswer ? "Редактирование ответа" : "Новый ответ"?></div>
             <div class="adm-detail-content-item-block">
                 <?if(!empty($saveError)):?>
                     <?=CAdminMessage::ShowMessage(array("MESSAGE" => $saveError, "TYPE" => "ERROR"))?>
                 <?endif;?>
-                <form method="POST">
-                    <?=bitrix_sessid_post()?>
-                    <input type="hidden" name="WEB_FORM_ID" value="<?=$WEB_FORM_ID?>">
-                    <input type="hidden" name="RESULT_ID" value="<?=$RESULT_ID?>">
-                    <input type="hidden" name="save" value="Y">
-                    <?if($editAnswer):?>
-                        <input type="hidden" name="edit_id" value="<?=$editAnswer["ID"]?>">
-                    <?endif;?>
-                    
+                <?if (CModule::IncludeModule("fileman")):?>
                     <?
-                    // Штатный визуальный редактор Битрикса (вкладки Визуальный / HTML / Текст).
-                    // Сам создаёт поля ANSWER и ANSWER_TYPE и на submit формы переносит
-                    // содержимое в textarea ANSWER.
-                    if (CModule::IncludeModule("fileman"))
-                    {
+                    // onsubmit - страховка: принудительно переносим контент всех
+                    // визуальных редакторов в их textarea перед отправкой (штатный
+                    // bx-html-editor делает это и сам, дублирование безвредно).
+                    ?>
+                    <form method="POST" onsubmit="try{if(window.BXHtmlEditor&&BXHtmlEditor.editors){for(var i in BXHtmlEditor.editors){if(BXHtmlEditor.editors[i]&&BXHtmlEditor.editors[i].SaveContent){BXHtmlEditor.editors[i].SaveContent();}}}}catch(e){}">
+                        <?=bitrix_sessid_post()?>
+                        <input type="hidden" name="WEB_FORM_ID" value="<?=$WEB_FORM_ID?>">
+                        <input type="hidden" name="RESULT_ID" value="<?=$RESULT_ID?>">
+                        <input type="hidden" name="save" value="Y">
+                        <?if($editAnswer):?>
+                            <input type="hidden" name="edit_id" value="<?=$editAnswer["ID"]?>">
+                        <?endif;?>
+
+                        <?
+                        // Единственное поле ввода - штатный визуальный редактор Битрикса
+                        // (bx-html-editor). Создаёт textarea ANSWER и селектор типа ANSWER_TYPE.
                         CFileMan::AddHTMLEditorFrame(
                             "ANSWER",
                             $editAnswer ? $editAnswer["~DETAIL_TEXT"] : "",
@@ -169,28 +171,22 @@ require_once($prologAfter);
                             $editAnswer ? $editAnswer["DETAIL_TEXT_TYPE"] : "html",
                             array("height" => 350, "width" => "100%")
                         );
-                    }
-                    else
-                    {
-                        // Фолбэк на случай, если модуль fileman недоступен.
                         ?>
-                        <textarea name="ANSWER" style="width:100%;height:350px;"><?=htmlspecialcharsbx($editAnswer ? $editAnswer["~DETAIL_TEXT"] : "")?></textarea>
-                        <input type="hidden" name="ANSWER_TYPE" value="html">
-                        <?
-                    }
-                    ?>
 
-                    <div style="margin-top:10px;">
-                        <input type="submit" value="<?=$editAnswer ? "Обновить" : "Сохранить"?>" class="adm-btn-save">
-                        <?if($editAnswer):?>
-                            <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?><?=$ifr?>" class="adm-btn">Отмена</a>
-                        <?endif;?>
-                    </div>
-                </form>
+                        <div style="margin-top:10px;">
+                            <input type="submit" value="<?=$editAnswer ? "Обновить" : "Сохранить"?>" class="adm-btn-save">
+                            <?if($editAnswer):?>
+                                <a href="?WEB_FORM_ID=<?=$WEB_FORM_ID?>&RESULT_ID=<?=$RESULT_ID?><?=$ifr?>" class="adm-btn">Отмена</a>
+                            <?endif;?>
+                        </div>
+                    </form>
+                <?else:?>
+                    <?=CAdminMessage::ShowMessage(array("MESSAGE" => "Визуальный редактор недоступен: модуль «Управление структурой» (fileman) не установлен.", "TYPE" => "ERROR"))?>
+                <?endif;?>
             </div>
         </div>
     </div>
-    
+
     <div class="adm-detail-content-wrap" style="margin-top:20px;">
         <div class="adm-detail-content">
             <div class="adm-detail-title">Существующие ответы</div>
