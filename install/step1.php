@@ -1,5 +1,8 @@
 <?
-if(!check_bitrix_sessid()) return;
+// Файл-сообщение об установке. Вызывается из DoInstall() через IncludeAdminFile,
+// куда управление доходит только после проверки прав и сессии в module_admin.php,
+// поэтому собственная проверка check_bitrix_sessid() здесь избыточна (и в контексте
+// IncludeAdminFile мешает выводу сообщения).
 IncludeModuleLangFile(__FILE__);
 
 if($ex = $APPLICATION->GetException())

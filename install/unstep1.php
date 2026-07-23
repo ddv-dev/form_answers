@@ -1,6 +1,8 @@
 <?
-// Итоговое сообщение об удалении модуля.
-if(!check_bitrix_sessid()) return;
+// Итоговое сообщение об удалении модуля. Вызывается из DoUninstall() через
+// IncludeAdminFile - управление доходит сюда только после проверки прав и сессии
+// в module_admin.php, поэтому своя проверка check_bitrix_sessid() здесь избыточна
+// (и в контексте IncludeAdminFile мешает выводу сообщения).
 IncludeModuleLangFile(__FILE__);
 
 global $APPLICATION;
