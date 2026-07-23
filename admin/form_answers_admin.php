@@ -121,6 +121,15 @@ if (isset($_REQUEST["edit_id"]) && intval($_REQUEST["edit_id"]) > 0)
 }
 
 require_once($prologAfter);
+
+if ($bIframe):
+    // В попап-режиме body (.adm-workarea) имеет min-height:100%, из-за чего он
+    // растягивается на всю высоту iframe. Родитель авто-подгоняет высоту iframe
+    // под содержимое, и без этого сброса получается петля бесконечного роста.
+?>
+<style>html, body { height: auto !important; min-height: 0 !important; }</style>
+<?
+endif;
 ?>
 
 <div class="adm-detail-content-wrap">

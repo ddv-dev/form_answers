@@ -117,8 +117,8 @@ class CFormAnswersHandlers
             .'var id='.json_encode($iframeId).';'
             .'function rz(){var f=document.getElementById(id);if(!f||!f.offsetWidth)return;'
             .'try{var d=f.contentWindow.document;'
-            .'var h=Math.max(d.body.scrollHeight,d.body.offsetHeight,d.documentElement.scrollHeight);'
-            .'if(h>0&&Math.abs(parseInt(f.style.height)-h)>2)f.style.height=(h+24)+"px";}catch(e){}}'
+            .'var h=Math.max(d.body.scrollHeight,d.body.offsetHeight,d.documentElement.offsetHeight);'
+            .'if(h>0){var t=h+24;if(Math.abs((parseInt(f.style.height,10)||0)-t)>2)f.style.height=t+"px";}}catch(e){}}'
             .'var f=document.getElementById(id);if(f){f.addEventListener("load",function(){setTimeout(rz,200);});}'
             .'setInterval(rz,500);'
             .'})();</script>';
