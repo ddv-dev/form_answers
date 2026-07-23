@@ -14,12 +14,23 @@ $RESULT_ID = intval($_REQUEST["RESULT_ID"]);
 $action = $_REQUEST["action"];
 $bIframe = ($_REQUEST["IFRAME"] === "Y");
 
+// В режиме iframe (вкладка "Ответы") используем "попап"-версию страницы админки:
+// она рисует содержимое без меню и шапки, но с полным JS-ядром, поэтому штатный
+// HTML-редактор Битрикса корректно инициализируется. В обычном режиме - обычная
+// полноценная админ-страница.
+$prologAfter = $bIframe
+    ? $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_popup_admin.php"
+    : $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php";
+$epilogFile = $bIframe
+    ? $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_popup_admin.php"
+    : $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php";
+
 $z = CForm::GetByID($WEB_FORM_ID);
 if (!$form = $z->Fetch())
 {
-    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+    require_once($prologAfter);
     CAdminMessage::ShowMessage("Форма не найдена");
-    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+    require($epilogFile);
     die();
 }
 
@@ -109,26 +120,7 @@ if (isset($_REQUEST["edit_id"]) && intval($_REQUEST["edit_id"]) > 0)
     }
 }
 
-// Всегда рендерим как полноценную админ-страницу: это нужно, чтобы штатный
-// HTML-редактор Битрикса (CFileMan::AddHTMLEditorFrame) корректно
-// инициализировался - его JS дорисовывается именно в админ-эпилоге.
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
-
-if ($bIframe):
-    // Страница открыта в iframe во вкладке "Ответы" - прячем меню и шапку
-    // админки, оставляя только содержимое.
-?>
-<style>
-    #bx_menu_panel, .adm-left-side-wrap, .adm-left-side,
-    .adm-header, .adm-header-container, #bx_header, #bx_panel, #panel,
-    .adm-toolbar-panel-container, .adm-nav-corner,
-    .adm-footer, #footer { display: none !important; }
-    .adm-workarea, #workarea { margin: 0 !important; padding: 0 !important; }
-    html, body#bx-admin-prefix { background: #fff !important; min-width: 0 !important; }
-    body#bx-admin-prefix { padding: 12px !important; }
-</style>
-<?
-endif;
+require_once($prologAfter);
 ?>
 
 <div class="adm-detail-content-wrap">
@@ -250,5 +242,5 @@ endif;
 <?endif;?>
 
 <?
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+require($epilogFile);
 ?>
