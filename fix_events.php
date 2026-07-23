@@ -1,9 +1,11 @@
 <?php
 /**
- * Разовый скрипт: регистрирует корректный обработчик вкладки "Ответы"
- * (main / OnAdminTabControlBegin) и, если модуль ещё не зарегистрирован
- * в b_module, регистрирует его - через штатное API Битрикса, а не через
- * прямые SQL-запросы.
+ * Разовый скрипт восстановления модуля form.answers через штатное API
+ * Битрикса (а не прямые SQL-запросы):
+ *   - регистрирует модуль в b_module, если он не зарегистрирован;
+ *   - регистрирует корректный обработчик вкладки "Ответы"
+ *     (main / OnAdminTabControlBegin), убирая дубли и старую подписку;
+ *   - создаёт инфоблок "Ответы" с полями ID_RESULT/ID_FORM, если его нет.
  *
  * Можно запустить как через браузер (под учёткой администратора), так и
  * через php-cli - в CLI $_SERVER["DOCUMENT_ROOT"] не задан, поэтому корень
@@ -35,6 +37,7 @@ require($documentRoot."/bitrix/modules/main/include/prolog_before.php");
 
 use Bitrix\Main\EventManager;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Config\Option;
 
 if (php_sapi_type() !== "cli")
 {
@@ -86,6 +89,41 @@ $em->registerEventHandler(
     "OnAdminTabControlBegin"
 );
 echo "3. Обработчик main/OnAdminTabControlBegin зарегистрирован\n";
+
+// 4. Инфоблок "Ответы" - переиспользуем штатный CreateIBlock() из установщика,
+// чтобы логика создания жила в одном месте (install/index.php).
+$iblockId = intval(Option::get("form.answers", "answers_iblock_id", 0));
+if ($iblockId > 0)
+{
+    echo "4. Инфоблок ответов уже существует (ID: {$iblockId})\n";
+}
+else
+{
+    $installFile = $documentRoot."/bitrix/modules/form.answers/install/index.php";
+    if (is_file($installFile))
+    {
+        require_once($installFile);
+        if (class_exists("form_answers"))
+        {
+            $installer = new form_answers();
+            $installer->CreateIBlock();
+            $iblockId = intval(Option::get("form.answers", "answers_iblock_id", 0));
+            if ($iblockId > 0)
+                echo "4. Инфоблок ответов создан (ID: {$iblockId}), поля ID_RESULT / ID_FORM добавлены\n";
+            else
+                echo "4. НЕ удалось создать инфоблок: "
+                    .(!empty($installer->errors) ? $installer->errors : "проверьте, что модуль iblock установлен")."\n";
+        }
+        else
+        {
+            echo "4. Класс установщика form_answers не найден (install/index.php не подключился)\n";
+        }
+    }
+    else
+    {
+        echo "4. Файл установщика не найден: {$installFile}\n";
+    }
+}
 
 echo "\nГотово. Проверьте вкладку \"Ответы\" в результатах веб-формы,\n";
 echo "предварительно включив её для нужной формы в настройках модуля.\n";
