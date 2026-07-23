@@ -34,11 +34,6 @@ if ($APPLICATION->GetGroupRight("form.answers") != "D")
         "items" => array_merge(
             array(
                 array(
-                    "text" => "Обзор форм",
-                    "url" => "form_answers_menu.php?lang=".LANGUAGE_ID,
-                    "title" => "Все формы с ответами",
-                ),
-                array(
                     "text" => "Настройки модуля",
                     "url" => "form_answers_settings.php?lang=".LANGUAGE_ID,
                     "title" => "Настройка ответов",

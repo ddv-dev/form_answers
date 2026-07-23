@@ -99,25 +99,36 @@ class form_answers extends CModule
         return true;
     }
     
+    // Страницы модуля, которые должны быть доступны по URL из /bitrix/admin/.
+    // menu.php сюда НЕ входит: он подхватывается ядром прямо из каталога модуля
+    // (bitrix/modules/form.answers/admin/menu.php), а копирование его в
+    // /bitrix/admin/ перезаписало бы штатный файл меню ядра.
+    protected $adminPages = array(
+        "form_answers_admin.php",
+        "form_answers_settings.php",
+    );
+
     function InstallFiles($arParams = array())
     {
-        // Копируем файлы в /bitrix/admin/
-        CopyDirFiles(
-            $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/admin",
-            $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin",
-            true,
-            true
-        );
+        $from = $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/admin/";
+        $to   = $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin/";
+
+        foreach ($this->adminPages as $file)
+            CopyDirFiles($from.$file, $to.$file, true, false);
+
         return true;
     }
-    
+
     function UnInstallFiles()
     {
-        // Удаляем файлы из /bitrix/admin/
-        DeleteDirFiles(
-            $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/".$this->MODULE_ID."/admin",
-            $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin"
-        );
+        $to = $_SERVER["DOCUMENT_ROOT"]."/bitrix/admin/";
+
+        foreach ($this->adminPages as $file)
+        {
+            if (file_exists($to.$file))
+                @unlink($to.$file);
+        }
+
         return true;
     }
     
@@ -169,10 +180,26 @@ class form_answers extends CModule
             if ($res->Fetch())
             {
                 // Инфоблок уже существует
+                $this->ensureIBlockProperties($iblockId);
                 return true;
             }
         }
-        
+
+        // Инфоблок мог остаться от прошлой установки (удаление модуля стирает
+        // только опцию, но не сам инфоблок). Переиспользуем его, чтобы не
+        // плодить дубли и сохранить уже оставленные ответы.
+        $res = CIBlock::GetList(array(), array(
+            "TYPE" => "form_answers",
+            "CODE" => "form_answers",
+            "CHECK_PERMISSIONS" => "N",
+        ));
+        if ($existing = $res->Fetch())
+        {
+            Option::set($this->MODULE_ID, "answers_iblock_id", $existing["ID"]);
+            $this->ensureIBlockProperties($existing["ID"]);
+            return $existing["ID"];
+        }
+
         // Создаем тип инфоблока если его нет
         $obType = new CIBlockType;
         $dbType = CIBlockType::GetByID("form_answers");
@@ -219,33 +246,9 @@ class form_answers extends CModule
         
         if ($newIblockId)
         {
-            // Создаем свойство "ID_RESULT"
-            $ibp = new CIBlockProperty;
-            $arPropFields = array(
-                "NAME" => "ID результата",
-                "ACTIVE" => "Y",
-                "SORT" => 100,
-                "CODE" => "ID_RESULT",
-                "PROPERTY_TYPE" => "N",
-                "IBLOCK_ID" => $newIblockId,
-                "IS_REQUIRED" => "Y",
-                "FILTRABLE" => "Y"
-            );
-            $ibp->Add($arPropFields);
-            
-            // Создаем свойство "ID_FORM"
-            $arPropFields = array(
-                "NAME" => "ID формы",
-                "ACTIVE" => "Y",
-                "SORT" => 200,
-                "CODE" => "ID_FORM",
-                "PROPERTY_TYPE" => "N",
-                "IBLOCK_ID" => $newIblockId,
-                "IS_REQUIRED" => "Y",
-                "FILTRABLE" => "Y"
-            );
-            $ibp->Add($arPropFields);
-            
+            // Свойства "ID_RESULT" и "ID_FORM"
+            $this->ensureIBlockProperties($newIblockId);
+
             // Сохраняем ID инфоблока в настройках модуля
             Option::set($this->MODULE_ID, "answers_iblock_id", $newIblockId);
         }
@@ -253,8 +256,43 @@ class form_answers extends CModule
         {
             $this->errors = $ib->LAST_ERROR;
         }
-        
+
         return $newIblockId;
+    }
+
+    // Создаёт недостающие свойства ID_RESULT / ID_FORM в инфоблоке ответов.
+    // Идемпотентно: существующие свойства не трогает (нужно при переустановке).
+    protected function ensureIBlockProperties($iblockId)
+    {
+        if (intval($iblockId) <= 0 || !Loader::includeModule("iblock"))
+            return;
+
+        $props = array(
+            array("CODE" => "ID_RESULT", "NAME" => "ID результата", "SORT" => 100),
+            array("CODE" => "ID_FORM",   "NAME" => "ID формы",       "SORT" => 200),
+        );
+
+        foreach ($props as $p)
+        {
+            $rs = CIBlockProperty::GetList(array(), array(
+                "IBLOCK_ID" => $iblockId,
+                "CODE" => $p["CODE"],
+            ));
+            if ($rs->Fetch())
+                continue;
+
+            $ibp = new CIBlockProperty;
+            $ibp->Add(array(
+                "NAME" => $p["NAME"],
+                "ACTIVE" => "Y",
+                "SORT" => $p["SORT"],
+                "CODE" => $p["CODE"],
+                "PROPERTY_TYPE" => "N",
+                "IBLOCK_ID" => $iblockId,
+                "IS_REQUIRED" => "Y",
+                "FILTRABLE" => "Y",
+            ));
+        }
     }
 }
 ?>
