@@ -105,36 +105,26 @@ if (isset($_REQUEST["edit_id"]) && intval($_REQUEST["edit_id"]) > 0)
     }
 }
 
-if ($bIframe)
-{
-    // Встроено вкладкой во вкладку "Ответы" на form_result_edit.php - выводим
-    // только содержимое, без общего меню/шапки админки.
-    ?><!DOCTYPE html>
-    <html>
-    <head><?$APPLICATION->ShowHead();?></head>
-    <body>
-    <?
-}
-else
-{
-    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
-}
+// Всегда рендерим как полноценную админ-страницу: это нужно, чтобы штатный
+// HTML-редактор Битрикса (CFileMan::AddHTMLEditorFrame) корректно
+// инициализировался - его JS дорисовывается именно в админ-эпилоге.
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
-// Визуальный редактор
-if (CModule::IncludeModule("fileman"))
-{
-    CFileMan::AddHTMLEditorFrame(
-        "ANSWER",
-        $editAnswer ? $editAnswer["DETAIL_TEXT"] : "",
-        "ANSWER_TYPE",
-        $editAnswer ? $editAnswer["DETAIL_TEXT_TYPE"] : "html",
-        array("height" => 400, "width" => "100%"),
-        "N",
-        0,
-        "",
-        ""
-    );
-}
+if ($bIframe):
+    // Страница открыта в iframe во вкладке "Ответы" - прячем меню и шапку
+    // админки, оставляя только содержимое.
+?>
+<style>
+    #bx_menu_panel, .adm-left-side-wrap, .adm-left-side,
+    .adm-header, .adm-header-container, #bx_header, #bx_panel, #panel,
+    .adm-toolbar-panel-container, .adm-nav-corner,
+    .adm-footer, #footer { display: none !important; }
+    .adm-workarea, #workarea { margin: 0 !important; padding: 0 !important; }
+    html, body#bx-admin-prefix { background: #fff !important; min-width: 0 !important; }
+    body#bx-admin-prefix { padding: 12px !important; }
+</style>
+<?
+endif;
 ?>
 
 <div class="adm-detail-content-wrap">
@@ -167,9 +157,37 @@ if (CModule::IncludeModule("fileman"))
                         <input type="hidden" name="edit_id" value="<?=$editAnswer["ID"]?>">
                     <?endif;?>
                     
-                    <textarea name="ANSWER" id="ANSWER" style="width:100%;height:400px;"></textarea>
-                    <input type="hidden" name="ANSWER_TYPE" id="ANSWER_TYPE" value="html">
-                    
+                    <?
+                    // Штатный редактор Битрикса с переключателем Визуальный/HTML/Текст.
+                    // Он сам создаёт поля ANSWER и ANSWER_TYPE и на submit формы
+                    // переносит содержимое в textarea ANSWER.
+                    if (CModule::IncludeModule("fileman"))
+                    {
+                        CFileMan::AddHTMLEditorFrame(
+                            "ANSWER",
+                            $editAnswer ? $editAnswer["~DETAIL_TEXT"] : "",
+                            "ANSWER_TYPE",
+                            $editAnswer ? $editAnswer["DETAIL_TEXT_TYPE"] : "html",
+                            array("height" => 350, "width" => "100%")
+                        );
+                    }
+                    else
+                    {
+                        // Фолбэк, если модуль fileman недоступен: простое поле HTML/ТЕКСТ.
+                        $curType = $editAnswer ? $editAnswer["DETAIL_TEXT_TYPE"] : "html";
+                        ?>
+                        <div style="margin-bottom:6px;">
+                            Тип текста:
+                            <select name="ANSWER_TYPE">
+                                <option value="html" <?=$curType=="html"?"selected":""?>>HTML</option>
+                                <option value="text" <?=$curType=="text"?"selected":""?>>Текст</option>
+                            </select>
+                        </div>
+                        <textarea name="ANSWER" style="width:100%;height:350px;"><?=htmlspecialcharsbx($editAnswer ? $editAnswer["~DETAIL_TEXT"] : "")?></textarea>
+                        <?
+                    }
+                    ?>
+
                     <div style="margin-top:10px;">
                         <input type="submit" value="<?=$editAnswer ? "Обновить" : "Сохранить"?>" class="adm-btn-save">
                         <?if($editAnswer):?>
@@ -217,7 +235,7 @@ if (CModule::IncludeModule("fileman"))
                                    style="margin-left:10px; color:red;">Удалить</a>
                             </div>
                             <div style="padding:10px; background:white; border:1px solid #e0e0e0;">
-                                <?=($answer["DETAIL_TEXT_TYPE"] == "html" ? $answer["DETAIL_TEXT"] : nl2br(htmlspecialcharsbx($answer["DETAIL_TEXT"])))?>
+                                <?=($answer["DETAIL_TEXT_TYPE"] == "html" ? $answer["~DETAIL_TEXT"] : nl2br(htmlspecialcharsbx($answer["~DETAIL_TEXT"])))?>
                             </div>
                         </div>
                         <?
@@ -232,12 +250,5 @@ if (CModule::IncludeModule("fileman"))
 <?endif;?>
 
 <?
-if ($bIframe):
-?>
-    </body>
-    </html>
-<?
-else:
-    require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
-endif;
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
 ?>
