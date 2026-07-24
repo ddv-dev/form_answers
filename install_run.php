@@ -13,8 +13,10 @@
 
 $documentRoot = isset($_SERVER["DOCUMENT_ROOT"]) ? $_SERVER["DOCUMENT_ROOT"] : "";
 if ($documentRoot === "" || !is_file($documentRoot."/bitrix/modules/main/include/prolog_before.php")) {
+    // Корень сайта - всё, что до "/bitrix/modules/" в пути этого файла
+    // (не зависит от того, form.answers папка или form_answers).
     $self = str_replace("\\", "/", __FILE__);
-    $pos = strrpos($self, "/bitrix/modules/form.answers");
+    $pos = strpos($self, "/bitrix/modules/");
     $documentRoot = ($pos !== false) ? substr($self, 0, $pos) : rtrim(str_replace("\\", "/", dirname(__FILE__)), "/");
 }
 if (!is_file($documentRoot."/bitrix/modules/main/include/prolog_before.php"))
@@ -37,6 +39,16 @@ if (php_sapi_type() !== "cli") {
 
 $MID = "form.answers";
 echo "=== Установка модуля {$MID} ===\n\n";
+
+// Критично: папка модуля должна называться точно как ID - "form.answers" (с точкой).
+if (!is_dir($documentRoot."/bitrix/modules/form.answers")
+    && !is_dir($documentRoot."/local/modules/form.answers")) {
+    echo "❌ Папка модуля bitrix/modules/form.answers (с ТОЧКОЙ) не найдена.\n";
+    echo "   Похоже, модуль лежит в папке с другим именем (например, form_answers с\n";
+    echo "   подчёркиванием). Имя папки обязано совпадать с ID модуля - переименуйте её\n";
+    echo "   в form.answers и запустите скрипт снова. Установка без этого не отработает.\n";
+    die("\n");
+}
 
 echo "Статус до установки: ".(ModuleManager::isModuleInstalled($MID) ? "УСТАНОВЛЕН" : "не установлен")."\n\n";
 
